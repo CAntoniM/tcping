@@ -31,17 +31,13 @@ struct PingUpdate {
 }
 
 fn ping(
-    mut hostname: String,
+    hostname: String,
     number_of_message: usize,
     timeout: Duration,
-    port_no: u16,
     return_channel: Sender<PingUpdate>,
 ) {
     for i in 0..number_of_message {
         let sockaddr: SocketAddr;
-        if !hostname.contains(':') {
-            hostname = format!("{}:{}", hostname, port_no)
-        }
         match hostname.to_socket_addrs() {
             Ok(data) => {
                 let addrs: Vec<SocketAddr> = data.collect();
@@ -122,7 +118,11 @@ fn main() -> Result<(), String> {
     let (tx, rx) = channel();
     let thread_pool = threadpool::ThreadPool::new(app.threads);
     let mut max_hostname_len: usize = 0;
-    for host in app.hosts.clone().iter() {
+    for host in app.hosts.clone().iter_mut() {
+        if !host.contains(':') {
+            host.clear();
+            host.push_str(format!("{}:{}", host, app.port).as_str());
+        }
         if max_hostname_len < host.len() {
             max_hostname_len = host.len();
         }
@@ -135,7 +135,6 @@ fn main() -> Result<(), String> {
                 target_host,
                 number_of_messages,
                 Duration::from_secs(timeout),
-                app.port,
                 return_channel,
             );
         })
