@@ -30,6 +30,9 @@ struct PingUpdate {
     result: Result<Duration, String>,
 }
 
+///Will send a SYN TCP message to the "hostname" then time the time until it recives a ACK message
+/// It will then return an update via the "return_channel" provided note all connection are subject
+/// to the "timeout" and it will repeat this as many times as spcified by "number_of_messages"
 fn ping(
     hostname: String,
     number_of_message: usize,
@@ -92,6 +95,7 @@ fn ping(
     }
 }
 
+/// returns a string containing strings of length "size"
 fn gen_filler(size: usize) -> String {
     let mut output_filler = String::new();
     for _ in 0..size {
@@ -100,6 +104,7 @@ fn gen_filler(size: usize) -> String {
     return output_filler;
 }
 
+/// returns a string for spacing out the diffrence between the max count and the current sequence number
 fn gen_spacer(count: usize, seq_num: usize) -> String {
     let spacer_size =
         (count.checked_ilog10().unwrap_or(0) + 1) - seq_num.checked_ilog10().unwrap_or(0);
@@ -188,11 +193,7 @@ fn main() -> Result<(), String> {
             }
         }
         print!(
-            "
-        Ping statistics for {}:
-            Packets: sent {}, Recived {}, Lost {} ({}% loss).
-            Round Trip times: Minimum {}ms, Maximum {}ms, Average {}ms
-        ",
+            "Ping statistics for {}:\n\tPackets: sent {}, Recived {}, Lost {} ({}% loss).\n\tRound Trip times: Minimum {}ms, Maximum {}ms, Average {}ms\n",
             hostname,
             packets_sent,
             packets_recived,
@@ -205,4 +206,66 @@ fn main() -> Result<(), String> {
     }
 
     return Ok(());
+}
+
+#[cfg(test)]
+mod test {
+    use std::{time::Duration, sync::mpsc::channel};
+
+    use crate::{gen_filler, gen_spacer, ping};
+
+    #[test]
+    fn test_get_spacer_size() {
+        let test_cases = [
+            ((1, 6), " ".to_string()),
+            ((1, 100000), "      ".to_string()),
+            ((10, 1), "".to_string()),
+        ];
+        for test_case in test_cases {
+            let ((seq_num, count), expected_result) = test_case;
+            assert_eq!(gen_spacer(count, seq_num), expected_result)
+        }
+    }
+
+    #[test]
+    fn test_gen_filler() {
+        let test_cases = [
+            (1, " ".to_string()),
+            (0, "".to_string()),
+            (10, "          ".to_string()),
+        ];
+        for test_case in test_cases {
+            let (test, expected_result) = test_case;
+            assert_eq!(gen_filler(test), expected_result)
+        }
+    }
+    #[test]
+    fn test_ping() {
+        let test_cases = [("www.google.com:443".to_string(), 1, Duration::from_secs(1))];
+        for test_case in test_cases {
+            let (hostname, count,timeout) =test_case;
+            let (tx, rx) = channel();
+            ping(hostname.clone(), count, timeout, tx);
+
+            for update in rx.iter().take(count) {
+                assert_eq!(update.hostname,hostname);
+                if let Err(e)=  update.result {
+                    panic!("{}",e);
+                }
+            }
+        }
+    let neg_test_cases = [("127.0.0.1:16000".to_string(), 1, Duration::from_secs(1)),("www.google.com:443".to_string(), 1, Duration::from_secs(0))];
+    for test_case in neg_test_cases {
+        let (hostname, count,timeout) =test_case;
+        let (tx, rx) = channel();
+        ping(hostname.clone(), count, timeout, tx);
+
+        for update in rx.iter().take(count) {
+            assert_eq!(update.hostname,hostname);
+            if let Ok(_)=  update.result {
+                panic!("Expected to not be able to connect to this port in the given timeout range.");
+            }
+        }
+    }
+}
 }
