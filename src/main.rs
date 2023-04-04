@@ -210,7 +210,7 @@ fn main() -> Result<(), String> {
 
 #[cfg(test)]
 mod test {
-    use std::{time::Duration, sync::mpsc::channel};
+    use std::{sync::mpsc::channel, time::Duration};
 
     use crate::{gen_filler, gen_spacer, ping};
 
@@ -243,29 +243,32 @@ mod test {
     fn test_ping() {
         let test_cases = [("www.google.com:443".to_string(), 1, Duration::from_secs(1))];
         for test_case in test_cases {
-            let (hostname, count,timeout) =test_case;
+            let (hostname, count, timeout) = test_case;
             let (tx, rx) = channel();
             ping(hostname.clone(), count, timeout, tx);
 
             for update in rx.iter().take(count) {
-                assert_eq!(update.hostname,hostname);
-                if let Err(e)=  update.result {
-                    panic!("{}",e);
+                assert_eq!(update.hostname, hostname);
+                if let Err(e) = update.result {
+                    panic!("{}", e);
                 }
             }
         }
-    let neg_test_cases = [("127.0.0.1:16000".to_string(), 1, Duration::from_secs(1)),("www.google.com:443".to_string(), 1, Duration::from_secs(0))];
-    for test_case in neg_test_cases {
-        let (hostname, count,timeout) =test_case;
-        let (tx, rx) = channel();
-        ping(hostname.clone(), count, timeout, tx);
+        let neg_test_cases = [
+            ("127.0.0.1:16000".to_string(), 1, Duration::from_secs(1)),
+            ("www.google.com:443".to_string(), 1, Duration::from_secs(0)),
+        ];
+        for test_case in neg_test_cases {
+            let (hostname, count, timeout) = test_case;
+            let (tx, rx) = channel();
+            ping(hostname.clone(), count, timeout, tx);
 
-        for update in rx.iter().take(count) {
-            assert_eq!(update.hostname,hostname);
-            if let Ok(_)=  update.result {
-                panic!("Expected to not be able to connect to this port in the given timeout range.");
+            for update in rx.iter().take(count) {
+                assert_eq!(update.hostname, hostname);
+                if let Ok(_) = update.result {
+                    panic!("Expected to not be able to connect to this port in the given timeout range.");
+                }
             }
         }
     }
-}
 }
