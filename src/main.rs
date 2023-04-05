@@ -9,20 +9,33 @@ use std::{
 };
 
 use clap::Parser;
+
+/// A simple Ping Application using the TCP handshake to get the round trip
+/// time to a host
 #[derive(Parser, Debug)]
 struct App {
+    /// Defines the number of pings sent to a particular host
     #[arg(long, short, default_value_t = 16)]
     count: usize,
+    /// This sets the timeout on the socket.
     #[arg(long, short, default_value_t = 10)]
     timeout: u64,
+    /// This defines the default port that will be used if non is provided.
     #[arg(long, short, default_value_t = 80)]
     port: u16,
+    /// Sets the number of threads used when pinging remote hosts
+    /// There will always be a 1 host to 1 thread mapping.
     #[arg(long, default_value_t = 1)]
     threads: usize,
+    /// This is the list of hostnames that we will connect to with an optional
+    /// :<portno> on the end to override the default port number used.
     #[arg(value_name = "HOSTNAME")]
     hosts: Vec<String>,
 }
 
+/// This is message structure that is used by the threads in the thread pool
+/// that will be used by the ping method to communicate what happened during
+/// the ping.
 #[derive(Clone)]
 struct PingUpdate {
     hostname: String,
